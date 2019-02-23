@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>gaue.org</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body, html {
+				cursor: url(img/cursor0.png), default;
+	    	cursor: url(img/cursor0.png), pointer;
+				font-smooth: never;
+				-webkit-font-smoothing : none;
+			}
+			a:hover {
+			  cursor: url(img/cursor-pointer.png), pointer;
+			 }
+			img {
+			  display: block;
+				float:left;
+			}
+			img:hover {
+				cursor: url(img/cursor-pointer.png), pointer;
+			}
+			body {
+				font-family: Monospace;
+				background-color: #000;
+				color: #fff;
+				margin: 0px;
+				overflow: hidden;
+			}
+			div.overlay{
+			   pointer-events:none;
+			}
+			#info {
+				padding-left: 10px;
+				color: #fff;
+				position: absolute;
+				width: 100%;
+				text-align: left;
+				z-index: 100;
+				display:block;
+			}
+			#info a {
+				color: #75ddc1;
+				font-weight: bold;
+			}
+			#left-id {
+				float: right;
+			}
+		</style>
+	</head>
+
+	<body>
+
+		<div id="info">
+				<div id="left-id"></div>
+				<p>gaue.org</p>
+				<img onclick="toggle('blines')" src="img/ico/xy.png" alt="">
+				<img onclick="toggle('grid')" src="img/ico/grid.png" alt="">
+				<img onclick="switchScene(4)" src="img/ico/sphere.png" alt="">
+				<img onclick="toggle('pointers')" src="img/ico/smallSphere.png" alt="">
+				<img onclick="toggleAllArrows()" src="img/ico/arrow.png" alt="">
+				<img onclick="warning()" src="img/ico/face.png" alt="">
+				<img onclick="warning()" src="img/ico/question.png" alt="">
+				<img onclick="toggle('marker')" src="img/ico/box.png" alt="">
+				<img onclick="switchScene(3)" src="img/ico/place.png" alt="place">
+				<img onclick="switchScene(5)" src="img/ico/eraser.png" alt="erase">
+				<img onclick="switchScene(2)" src="img/ico/makemesh.png" alt="makemesh">
+				<img onclick="toggleControls()" src="img/ico/camera.png" alt="camera">
+				<br>
+				<a href="">blog</a><br>
+				<a href="">about</a><br>
+
+				<br>
+					<div id="debug-id"></div>
+					<div id="scene-id"></div>
+					<div id="node-id"></div>
+					<div id="functions-id"></div>
+
+		</div>
+
+		<script src="js/build/three.js"></script>
+
+		<script src="js/controls/OrbitControls.js"></script>
+		<script src="js/loaders/GLTFLoader.js"></script>
+		<script src="js/QuickHull.js"></script>
+		<script src="js/geometries/ConvexGeometry.js"></script>
+		<script src="js/controls/PointerLockControls.js"></script>
+
+		<script src="js/WebGL.js"></script>
+
+		<script src="draw.js"></script>
+		<script src="arrows.js"></script>
+		<script src="spheres.js"></script>
+		<script src="controls.js"></script>
+
+		<script>
+
+			colors = [0x0000ff, 0xff0000, 0xffff00, 0x00ffff, 0x00ff00, 0xff00e6]
+
+			function getMat(){
+				let col = colors[Math.floor(Math.random()*colors.length)];
+				return new THREE.MeshPhongMaterial( { color: col, specular: 0x555555, shininess: 30 } );
+			}
+
+			if ( WEBGL.isWebGLAvailable() === false ) {
+
+				document.body.appendChild( WEBGL.getWebGLErrorMessage() );
+
+			}
+
+			modes = {
+				"sphere":false,
+				"draw":true,
+				"other":false
+			};
+
+			var container, stats, controls;
+			var camera, scene, renderer, light;
+			var cube, tracer;
+			var arrows = [];
+			var enabled = false;
+			var pointerGroup;
+			var sceneNum = 3;
+			var INTERSECTED;
+			var coords = [];
+
+			var scenes = ["","placex","drawmesh","spheres","erase"]
+
+			writeString("<a onclick='finishMesh()'>current scene: </a>"+sceneNum,"debug-id")
+			writeString("current scene: "+sceneNum,"debug-id")
+
+			function switchScene(s){
+				sceneNum = s;
+				writeString("<font color=#00ff00>" + scenes[s-1] + "</font>","scene-id")
+				writeString("<a onclick='finishMesh()'>current scene: </a>"+sceneNum,"debug-id")
+			}
+
+			init();
+			animate();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 10, window.innerWidth / window.innerHeight, 0.25, 100 );
+				camera.position.set( 0,0, 30 );
+
+				controls = new THREE.OrbitControls( camera );
+				controls.target.set( 0, 0, 0 );
+				controls.update();
+				controls.enabled = false;
+
+				var urls = [ 'posx.jpg', 'negx.jpg', 'posy.jpg', 'negy.jpg', 'posz.jpg', 'negz.jpg' ];
+				var loader = new THREE.CubeTextureLoader().setPath( 'textures/cube/Bridge2/' );
+				var background = loader.load( urls );
+
+				scene = new THREE.Scene();
+				//scene.background = background;
+
+				light = new THREE.PointLight( 0xffffff, 0.5, 100 );
+				light.position.set( -5, 5, 0 );
+				scene.add( light );
+
+				light = new THREE.HemisphereLight( 0xa0a0a0, 0x000000 );
+				light.position.set( -1, 1, 0 );
+				scene.add( light );
+
+				handleControls();
+
+				function seed(min,max) { return (Math.random() * (min - max) + max).toFixed(10) }
+
+				// sphere
+				var geometry = new THREE.BoxGeometry( .1, .1, .0001 );
+				var material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+				cube = new THREE.Mesh( geometry, material );
+				cube.position.set(seed(-1,1),seed(-1,1),-1)
+				cube.name = 'marker'
+				scene.add( cube );
+
+				// handleGrid()
+				var size = 5;
+				var divisions = 20;
+				var gridpz = -50;
+
+				var gridHelper = new THREE.GridHelper( size, divisions );
+				gridHelper.position.set(0,0,gridpz)
+				gridHelper.rotation.x = Math.PI / 2;
+				gridHelper.name = 'grid';
+				scene.add( gridHelper );
+
+				var gridGeo = new THREE.SphereGeometry( .05, .1, .1 );
+				var material = new THREE.MeshPhongMaterial( { color: 0x006bff, specular: 0x555555, shininess: 30 } );
+				pointerGroup = new THREE.Group();
+				for(i=0;i<divisions+1;i++){
+					let k = i * (.25);
+					for(j=0;j<divisions+1;j++){
+						var gridPointer = new THREE.Mesh( gridGeo, material );
+						let l = j * (.25);
+						gridPointer.position.set(-size/2+l,size/2-k,gridpz);
+						coords.push([gridPointer.position.x, gridPointer.position.y]);
+						pointerGroup.add(gridPointer);
+					}
+				}
+				pointerGroup.name='pointers'
+				scene.add( pointerGroup );
+
+				var loader = new THREE.GLTFLoader().setPath( 'gltf/' );
+				loader.load( 'arrows.gltf', function ( gltf ) {
+					gltf.scene.traverse( function ( child ) {
+						if ( child.isMesh ) { child.material.envMap = background; }
+					} );
+					for ( var i = 0; i < seed(3,10); i++ ) {
+						var tmpMesh = gltf.scene.clone();
+						arrows.push(tmpMesh);
+					}
+					arrows.forEach((arrow) => {
+							arrow.children.forEach((child) => {
+								child.scale.set(.1,.1,.1);
+								child.position.set(seed(-3,3),seed(-2.25,2.25),0);
+								child.material = getMat();
+								gltf.scene.children.push(child);
+								//child.children.forEach((locator) => { locator.visible = false })
+							})
+					});
+					gltf.scene.scale.set(.1,.1,.1)
+					gltf.scene.name = "scene";
+					let xyz = 0.0000000001;
+					gltf.scene.children[0].scale.set(xyz,xyz,xyz);
+					scene.add( gltf.scene );
+					animate();
+				}, undefined, function ( e ) {
+					console.error( e );
+				} );
+
+				// line
+				var blines = new THREE.Group();
+				var material = new THREE.LineBasicMaterial({ color: 0x0000ff });
+				var geometry = new THREE.Geometry();
+				geometry.vertices.push(
+					new THREE.Vector3( 0, -10, 0 ),
+					new THREE.Vector3( 0, 10, 0 )
+				);
+				var line = new THREE.Line( geometry, material );
+				blines.add( line );
+				// line
+				var geometry = new THREE.Geometry();
+				geometry.vertices.push(
+					new THREE.Vector3( -10, 0, 0 ),
+					new THREE.Vector3( 10, 0, 0 )
+				);
+				var line = new THREE.Line( geometry, material );
+				blines.add( line );
+				blines.name='blines'
+				scene.add(blines)
+				//line
+				var material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+				var geometry = new THREE.Geometry();
+				geometry.vertices.push(
+					new THREE.Vector3( .68, -.99, -.99 ),
+					new THREE.Vector3( .68, -.99, .68 ),
+					new THREE.Vector3( .68, -.99, .68*5 )
+				);
+				tracer = new THREE.Line( geometry, material );
+				tracer.name = 'tracer'
+				scene.add( tracer );
+
+				renderer = new THREE.WebGLRenderer( { antialias: false } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.gammaOutput = true;
+				container.appendChild( renderer.domElement );
+
+				window.addEventListener('mousemove', onMouseMove, false);
+				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			let mouse = new THREE.Vector3(0,0,0);
+
+			///
+
+			var spheres = new THREE.Group();
+			spheres.name = 'spheres';
+			scene.add(spheres);
+			var tbGeo = new THREE.SphereGeometry( .05, .1, .1 );
+			var tbMat = new THREE.MeshPhongMaterial( { color: 0xff0000, specular: 0x555555, shininess: 30, transparent: true, opacity: 0.75 } );
+			var trackball = new THREE.Mesh( tbGeo, tbMat );
+			trackball.visible = false;
+			trackball.name = "trackball";
+			scene.add(trackball);
+			var rx, ry;
+
+			function onMouseMove(event) {
+			    event.preventDefault();
+			    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+			    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+					if(sceneNum == 1 ) { mx = 10 } else { mx = -10 }
+
+			    cube.position.set(mouse.x, mouse.y, mouse.x-1);
+			   	//tracer.geometry.vertices[0].set(mouse.x, 0, 0)
+					tracer.geometry.vertices[0].set(mouse.x, mouse.y, mx)
+					tracer.geometry.vertices[1].set(mouse.x, mouse.y, -1)
+					tracer.geometry.vertices[2].set(mouse.x, mouse.y, mouse.x-1)
+
+					if (sceneNum == 4 || sceneNum == 5) { highlightSphere(tracer.geometry.vertices[0].x,tracer.geometry.vertices[0].y) }
+					else { trackball.visible = false }
+			};
+
+			function addObj(geometry,material){
+				var obj = new THREE.Mesh( geometry, material );
+				obj.position.set(mouse.x,mouse.y,-10)
+				scene.add( obj )
+			}
+
+			function onDocumentMouseDown(event) {
+			    event.preventDefault();
+					if (sceneNum == 1){
+							var geometry = new THREE.BoxGeometry( .05, .05, .05 );
+							var material = new THREE.MeshBasicMaterial( {color: 0x0000ff} );
+							addObj(geometry,material)
+					} else if (sceneNum == 2){
+							var geometry = new THREE.BoxGeometry( .02, .02, .02 );
+							var material = new THREE.MeshBasicMaterial( {color: 0xff0000} );
+							addObj(geometry,material)
+							returnX(mouse.x,mouse.y)
+					} else if (sceneNum == 3){
+							drawDot(mouse.x,mouse.y)
+					} else if (sceneNum == 4){
+							placeSphere(tracer.geometry.vertices[0].x,tracer.geometry.vertices[0].y)
+					} else if (sceneNum == 5){
+							removeSphere(tracer.geometry.vertices[0].x,tracer.geometry.vertices[0].y)
+					}
+					//var obj = new THREE.Mesh( geometry, material );
+				  //obj.position.set(mouse.x,mouse.y,-10)
+				  //scene.add( obj )
+			};
+
+			function onWindowResize() {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}
+
+			//
+
+			//let s = scene.getObjectByName("scene", true);
+
+			function animate() {
+				requestAnimationFrame( animate );
+
+				//scene.getObjectByName( "arrow", true ).lookAt( cube.position );
+				tracer.geometry.verticesNeedUpdate = true;
+				// Bad way of doing things probably
+				scene.children.forEach((child) => {
+					if(child.name == "scene"){
+						let s = child.children;
+						for ( var i = 1, l = s.length; i < l; i ++ ) {
+							s[ i ].lookAt( cube.position );
+						}
+					}
+				})
+
+				if(rotup){ rotateMesh('up') }
+				else if(rotdown){ rotateMesh('down') }
+				else if(rotleft){ rotateMesh('left') }
+				else if(rotright){ rotateMesh('right') }
+				else if(changeColor){ scrollColor() }
+				else if(finishMeshs){ finishMesh() }
+				renderer.render( scene, camera );
+			}
+
+		</script>
+
+	</body>
+</html>
