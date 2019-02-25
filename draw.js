@@ -21,6 +21,7 @@ var tmpPoints = []
 var group;
 var MAX_PTS = 3;
 
+// make function to just return geometry and material on input instead of defining each time
 function placeTmpPoint(x,y){
   var geometry = new THREE.BoxGeometry( .015, .015, .0001 );
   var material = new THREE.MeshBasicMaterial( {color: 0xffffff} );
@@ -73,6 +74,8 @@ function writeInfo(){
   else{ add = "" }
   if(meshCount >= 1){ add2 = "<br>use W A S D to rotate<br>use C to scroll mat color" } else { add2=""}
 
+	//meshCount >=1 ? add2 = "<br>W A S D to rotate<br>C to scroll mat color" : add2=''
+
   str = "max pts: "+mpts+"<br>"
         +"current pts: "+cpts+"<br>"
         +"mesh count: "+meshCount+"<br>"
@@ -121,6 +124,8 @@ function enumerate(){
   if((ci+1)>colors.length) { ci = 0 }
   else{ ci+=1 }
 }
+
+//const enumerate = _ => (ci+1)>colors.length ? ci = 0 : ci+=1
 
 function scrollColor(){
   let obj = returnMesh();
