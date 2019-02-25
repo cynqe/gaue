@@ -10,12 +10,8 @@ function transformations(t){
   return rt;
 }
 
-function returnCoords(x,y){
-  rx = transformations(x);
-  ry = transformations(y);
-
-  return [rx,ry];
-}
+const returnCoords = (x,y) => [transformations(x),transformations(y)]
+const writeString = (str,id) => { document.getElementById(id).innerHTML = str }
 
 function notOutOfBounds(xy){
   let xc = xy[0]*8,
@@ -25,10 +21,6 @@ function notOutOfBounds(xy){
   } else {
     return [xc,yc];
   }
-}
-
-function writeString(str,id){
-  document.getElementById(id).innerHTML = str;
 }
 
 function writeNodes(xy){

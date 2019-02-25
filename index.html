@@ -97,11 +97,14 @@
 		<script>
 
 			colors = [0x0000ff, 0xff0000, 0xffff00, 0x00ffff, 0x00ff00, 0xff00e6]
-
+			
+			const getCol = () => colors[Math.floor(Math.random()*colors.length)] 
+			const getMat = () => new THREE.MeshPhongMaterial( { color: getCol(), specular: 0x555555, shininess: 30 } )
+			/*
 			function getMat(){
 				let col = colors[Math.floor(Math.random()*colors.length)];
 				return new THREE.MeshPhongMaterial( { color: col, specular: 0x555555, shininess: 30 } );
-			}
+			} */
 
 			if ( WEBGL.isWebGLAvailable() === false ) {
 
@@ -130,10 +133,10 @@
 			writeString("<a onclick='finishMesh()'>current scene: </a>"+sceneNum,"debug-id")
 			writeString("current scene: "+sceneNum,"debug-id")
 
-			function switchScene(s){
+			const switchScene = (s) => {
 				sceneNum = s;
 				writeString("<font color=#00ff00>" + scenes[s-1] + "</font>","scene-id")
-				writeString("<a onclick='finishMesh()'>current scene: </a>"+sceneNum,"debug-id")
+				writeString("<a onclick='finishMesh()'>scn: </a>"+sceneNum,"debug-id")
 			}
 
 			init();

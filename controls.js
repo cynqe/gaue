@@ -108,6 +108,4 @@ function toggle(name){
   writeString("<font color=#00ff00>toggle" + name + "</font>","scene-id")
 }
 
-function warning(){
-  writeString("<font color=#ff0000>not implemented yet</font>","scene-id")
-}
+const warning = _ => { writeString("<font color=#ff0000>not implemented yet</font>","scene-id") }

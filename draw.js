@@ -103,8 +103,7 @@ function createConvexGeo(vertices){
   scene.add(group);
 }
 
-function returnMesh(){
-  let count = meshCount-1, name = "customMesh"+count, obj = scene.getObjectByName(name);
+const returnMesh = () => { let count = meshCount-1, name = "customMesh"+count, obj = scene.getObjectByName(name);
   return obj;
 }
 
